@@ -1,25 +1,55 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(minkindr)
 
-find_package(catkin_simple REQUIRED)
-catkin_simple(ALL_DEPS_REQUIRED)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Threads)
+find_package(ament_cmake REQUIRED)
+find_package(Eigen3 REQUIRED)
 
-catkin_add_gtest(${PROJECT_NAME}_tests 
-  test/test-main.cc
-  test/test-rotation.cc
-  test/test-sim3.cc
-  test/test-transformation.cc
-  test/test-transformation-2d.cc
+# Header-only library
+add_library(${PROJECT_NAME} INTERFACE)
+target_include_directories(${PROJECT_NAME} INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+  ${EIGEN3_INCLUDE_DIR}
 )
-target_link_libraries(${PROJECT_NAME}_tests ${catkin_LIBRARIES} 
-                                            ${CMAKE_THREAD_LIBS_INIT})
 
-# Add all files to show up in QtCreator.
-FILE(GLOB_RECURSE LibFiles "include/*")
-add_custom_target(headers SOURCES ${LibFiles})
+# Install headers
+install(DIRECTORY include/
+  DESTINATION include
+)
 
-cs_install()
-cs_export()
+# Export
+ament_export_include_directories(include)
+ament_export_targets(${PROJECT_NAME}Targets HAS_LIBRARY_TARGET)
 
+install(TARGETS ${PROJECT_NAME}
+  EXPORT ${PROJECT_NAME}Targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
+
+# Tests
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(eigen_checks REQUIRED)
+
+  ament_add_gtest(test_minkindr
+    test/test-main.cc
+    test/test-rotation.cc
+    test/test-transformation.cc
+    test/test-transformation-2d.cc
+    test/test-sim3.cc
+  )
+  target_include_directories(test_minkindr PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${EIGEN3_INCLUDE_DIR}
+  )
+  target_link_libraries(test_minkindr ${PROJECT_NAME} glog gflags)
+  ament_target_dependencies(test_minkindr eigen_checks)
+endif()
+
+ament_package()
